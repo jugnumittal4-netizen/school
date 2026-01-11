@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Salon Manager – Full App</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f4f4f4;
+            margin: 0
+        }
+
+        header {
+            background: #222;
+            color: white;
+            padding: 15px;
+            text-align: center
+        }
+
+        nav button {
+            width: 20%;
+            padding: 12px;
+            border: none;
+            background: #444;
+            color: white;
+            cursor: pointer
+        }
+
+        nav button:hover {
+            background: #0aa
+        }
+
+        section {
+            display: none;
+            padding: 15px
+        }
+
+        input,
+        button,
+        select {
+            padding: 8px;
+            margin: 4px;
+            width: 100%
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px
+        }
+
+        th,
+        td {
+            border: 1px solid #aaa;
+            padding: 6px;
+            text-align: center
+        }
+
+        th {
+            background: #ddd
+        }
+
+        .green {
+            color: green;
+            font-weight: bold
+        }
+
+        .red {
+            color: red;
+            font-weight: bold
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h2>Salon Manager</h2>
+    </header>
+
+    <nav>
+        <button onclick="show('items')">Services/Products</button>
+        <button onclick="show('billing')">Billing</button>
+        <button onclick="show('salary')">Salary</button>
+        <button onclick="show('expenses')">Expenses</button>
+        <button onclick="show('profit')">Profit/Loss</button>
+        <button onclick="show('search')">Search</button>
+    </nav>
+
+    <!-- SERVICES / PRODUCTS -->
+    <section id="items">
+        <h3>Add Service</h3>
+        <input id="svcName" placeholder="Service name">
+        <input type="number" id="svcPrice" placeholder="Price">
+        <button onclick="addItem('service')">Add Service</button>
+
+        <h3>Add Product</h3>
+        <input id="prdName" placeholder="Product name">
+        <input type="number" id="prdPrice" placeholder="Price">
+        <input type="number" id="prdComm" placeholder="Commission (internal)">
+        <button onclick="addItem('product')">Add Product</button>
+
+        <table>
+            <tr>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Delete</th>
+            </tr>
+            <tbody id="itemTable"></tbody>
+        </table>
+    </section>
+
+    <!-- BILLING -->
+    <section id="billing">
+        <h3>Create Bill</h3>
+        <input id="custName" placeholder="Customer Name">
+
+        <h4>Click to Add</h4>
+        <div id="itemButtons"></div>
+
+        <h4>Bill Items</h4>
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Total</th>
+                <th>Action</th>
+            </tr>
+            <tbody id="billTable"></tbody>
+        </table>
+
+        <h4>Discount</h4>
+        <input id="discount" placeholder="10% or 200">
+
+        <h3 id="billTotal"></h3>
+
+        <button onclick="saveBill()">Save Bill</button>
+        <button onclick="printBill()">Print Bill</button>
+    </section>
+
+    <!-- SALARY -->
+    <section id="salary">
+        <h3>Employees</h3>
+        <input id="empName" placeholder="Employee Name">
+        <input type="number" id="empSal" placeholder="Monthly Salary">
+        <button onclick="addEmp()">Add Employee</button>
+
+        <h3>Pay Salary</h3>
+        <select id="empSelect"></select>
+        <input type="number" id="payAmt" placeholder="Amount Paid Today">
+        <button onclick="paySalary()">Pay</button>
+
+        <h3>Salary History</h3>
+        <table>
+            <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Amount Paid</th>
+            </tr>
+            <tbody id="salHist"></tbody>
+        </table>
+    </section>
+
+    <!-- EXPENSES -->
+    <section id="expenses">
+        <h3>Add / Edit Expense</h3>
+        <input id="expName" placeholder="Expense Name">
+        <input type="number" id="expAmt" placeholder="Amount">
+        <input id="expDesc" placeholder="Description">
+        <button onclick="addExpense()">Add Expense</button>
+
+        <h3>Expense History</h3>
+        <table>
+            <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Amount</th>
+                <th>Description</th>
+                <th>Action</th>
+            </tr>
+            <tbody id="expHist"></tbody>
+        </table>
+    </section>
+
+    <!-- PROFIT/LOSS -->
+    <section id="profit">
+        <h3>Profit / Loss</h3>
+        <select id="range">
+            <option value="5">5 Days</option>
+            <option value="10">10 Days</option>
+            <option value="20">20 Days</option>
+            <option value="30">1 Month</option>
+            <option value="60">2 Months</option>
+            <option value="custom">Custom</option>
+        </select>
+        <input type="date" id="from">
+        <input type="date" id="to">
+        <button onclick="calcProfit()">View</button>
+        <div id="pRes"></div>
+    </section>
+
+    <!-- SEARCH -->
+    <section id="search">
+        <h3>Search</h3>
+        <input id="q" placeholder="Search by customer, service, product, expense, salary">
+        <button onclick="doSearch()">Find</button>
+        <div id="sRes"></div>
+    </section>
+
+    <script>
+        const today = () => new Date().toISOString().split("T")[0];
+
+        // DATA STORAGE
+        let items = JSON.parse(localStorage.items || "[]");
+        let bills = JSON.parse(localStorage.bills || "[]");
+        let employees = JSON.parse(localStorage.employees || "[]");
+        let salaryPay = JSON.parse(localStorage.salaryPay || "[]");
+        let expenses = JSON.parse(localStorage.expenses || "[]");
+
+        let billItems = [];
+
+        // SHOW SECTION
+        function show(id) {
+            document.querySelectorAll("section").forEach(s => s.style.display = "none");
+            document.getElementById(id).style.display = "block";
+            render();
+        }
+        show("items");
+
+        // ---------------- ITEMS ----------------
+        function addItem(type) {
+            items.push({
+                id: Date.now(),
+                type,
+                name: type === 'service' ? svcName.value : prdName.value,
+                price: type === 'service' ? +svcPrice.value : +prdPrice.value,
+                comm: type === 'product' ? +prdComm.value : 0
+            });
+            localStorage.items = JSON.stringify(items);
+            svcName.value = svcPrice.value = prdName.value = prdPrice.value = prdComm.value = "";
+            render();
+        }
+
+        // ---------------- BILLING ----------------
+        function addToBill(item) {
+            let b = billItems.find(x => x.id === item.id);
+            if (b) b.qty++;
+            else billItems.push({ ...item, qty: 1 });
+            renderBill();
+        }
+
+        function renderBill() {
+            billTable.innerHTML = "";
+            let total = 0;
+            billItems.forEach(b => {
+                let t = b.qty * b.price;
+                total += t;
+                billTable.innerHTML += `
+  <tr>
+  <td>${b.name}</td>
+  <td>${b.qty}</td>
+  <td>${b.price}</td>
+  <td>${t}</td>
+  <td>
+   <button onclick="b.qty++;renderBill()">+</button>
+   <button onclick="b.qty--; if(b.qty<=0) billItems=billItems.filter(x=>x!==b); renderBill()">−</button>
+  </td>
+  </tr>`;
+            });
+
+            let d = discount.value;
+            let final = total;
+            if (d.includes('%')) final -= total * (parseFloat(d) / 100);
+            else if (d) final -= +d;
+
+            billTotal.innerText = "Total: ₹" + final;
+        }
+
+        function saveBill() {
+            bills.push({
+                id: Date.now(),
+                date: today(),
+                customer: custName.value,
+                items: JSON.parse(JSON.stringify(billItems)),
+                discount: discount.value
+            });
+            localStorage.bills = JSON.stringify(bills);
+            billItems = [];
+            custName.value = discount.value = "";
+            renderBill();
+            alert("Bill saved");
+        }
+
+        function printBill() {
+            let content = `Customer: ${custName.value}\nDate: ${today()}\n\nItems:\n`;
+            billItems.forEach(b => content += `${b.name} x${b.qty} = ₹${b.qty * b.price}\n`);
+            content += `\nTotal: ₹${billTotal.innerText.replace('Total: ₹', '')}`;
+            let w = window.open();
+            w.document.write(`<pre>${content}</pre>`);
+            w.print();
+            w.close();
+        }
+
+        // ---------------- SALARY ----------------
+        function addEmp() {
+            employees.push({ id: Date.now(), name: empName.value, salary: +empSal.value });
+            localStorage.employees = JSON.stringify(employees);
+            empName.value = empSal.value = "";
+            render();
+        }
+
+        function paySalary() {
+            salaryPay.push({
+                id: Date.now(),
+                emp: empSelect.value,
+                amt: +payAmt.value,
+                date: today()
+            });
+            localStorage.salaryPay = JSON.stringify(salaryPay);
+            payAmt.value = "";
+            render();
+        }
+
+        // ---------------- EXPENSES ----------------
+        function addExpense(editId = null) {
+            let name = expName.value;
+            let amt = +expAmt.value;
+            let desc = expDesc.value;
+            if (!name || !amt) return alert("Enter name and amount");
+
+            if (editId) { // Update existing
+                let exp = expenses.find(e => e.id === editId);
+                exp.name = name;
+                exp.amt = amt;
+                exp.desc = desc;
+            } else { // Add new
+                expenses.push({
+                    id: Date.now(),
+                    name,
+                    amt,
+                    desc,
+                    date: today()
+                });
+            }
+            localStorage.expenses = JSON.stringify(expenses);
+            expName.value = expAmt.value = expDesc.value = "";
+            document.querySelector("#expenses button").innerText = "Add Expense";
+            document.querySelector("#expenses button").onclick = () => addExpense();
+            render();
+        }
+
+        function editExpense(id) {
+            let e = expenses.find(x => x.id === id);
+            expName.value = e.name;
+            expAmt.value = e.amt;
+            expDesc.value = e.desc;
+            document.querySelector("#expenses button").innerText = "Update Expense";
+            document.querySelector("#expenses button").onclick = () => addExpense(id);
+        }
+
+        function deleteExpense(id) {
+            if (confirm("Delete this expense?")) {
+                expenses = expenses.filter(x => x.id !== id);
+                localStorage.expenses = JSON.stringify(expenses);
+                render();
+            }
+        }
+
+        // ---------------- PROFIT ----------------
+        function calcProfit() {
+            let days = range.value;
+            let fromD = days === "custom" ? new Date(from.value) : new Date(Date.now() - days * 86400000);
+            let toD = days === "custom" ? new Date(to.value) : new Date();
+
+            let svcMap = {}, prodMap = {}, totalSales = 0;
+
+            bills.filter(b => new Date(b.date) >= fromD && new Date(b.date) <= toD)
+                .forEach(b => {
+                    b.items.forEach(i => {
+                        if (i.type === 'service') svcMap[i.name] = (svcMap[i.name] || 0) + (i.qty * i.price);
+                        else prodMap[i.name] = (prodMap[i.name] || 0) + (i.qty * (i.price - i.comm));
+                        totalSales += i.qty * (i.price - (i.comm || 0));
+                    });
+                });
+
+            let sal = salaryPay.filter(p => new Date(p.date) >= fromD && new Date(p.date) <= toD)
+                .reduce((a, b) => a + b.amt, 0);
+
+            let expTotal = expenses.filter(e => new Date(e.date) >= fromD && new Date(e.date) <= toD)
+                .reduce((a, b) => a + b.amt, 0);
+
+            let html = "<h4>Service Sales</h4>";
+            for (let k in svcMap) html += `${k}: ₹${svcMap[k]}<br>`;
+            html += "<h4>Product Sales</h4>";
+            for (let k in prodMap) html += `${k}: ₹${prodMap[k]}<br>`;
+            html += `<br>Salary Paid: ₹${sal}<br>Expenses: ₹${expTotal}<br>
+ <b>Profit: ₹${totalSales - sal - expTotal}</b>`;
+            pRes.innerHTML = html;
+        }
+
+        // ---------------- SEARCH ----------------
+        function doSearch() {
+            let v = q.value.toLowerCase();
+            let r = "";
+
+            // Bills
+            bills.filter(b => b.customer.toLowerCase().includes(v) || b.items.some(i => i.name.toLowerCase().includes(v)))
+                .forEach(b => r += `Bill ${b.date} - ${b.customer}<br>`);
+
+            // Expenses
+            expenses.filter(e => e.name.toLowerCase().includes(v) || e.desc.toLowerCase().includes(v))
+                .forEach(e => r += `Expense ${e.date} - ${e.name} ₹${e.amt} (${e.desc})<br>`);
+
+            // Salary
+            salaryPay.filter(s => employees.find(emp => emp.id == s.emp)?.name.toLowerCase().includes(v))
+                .forEach(s => r += `Salary ${s.date} - ${employees.find(emp => emp.id == s.emp)?.name} ₹${s.amt}<br>`);
+
+            sRes.innerHTML = r;
+        }
+
+        // ---------------- RENDER ----------------
+        function render() {
+            // ITEMS
+            itemTable.innerHTML = items.map(i =>
+                `<tr><td>${i.type}</td><td>${i.name}</td><td>${i.price}</td>
+ <td><button onclick="items=items.filter(x=>x.id!=${i.id});localStorage.items=JSON.stringify(items);render()">X</button></td></tr>`).join("");
+
+            itemButtons.innerHTML = items.map(i =>
+                `<button onclick='addToBill(${JSON.stringify(i)})'>${i.name} ₹${i.price}</button>`).join("");
+
+            // EMPLOYEES
+            empSelect.innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
+
+            // SALARY HISTORY
+            salHist.innerHTML = salaryPay.map(p => {
+                let n = employees.find(e => e.id == p.emp)?.name || "";
+                return `<tr><td>${p.date}</td><td>${n}</td><td>${p.amt}</td></tr>`;
+            }).join("");
+
+            // EXPENSE HISTORY
+            expHist.innerHTML = expenses.map(e =>
+                `<tr>
+   <td>${e.date}</td>
+   <td>${e.name}</td>
+   <td>${e.amt}</td>
+   <td>${e.desc}</td>
+   <td>
+     <button onclick="editExpense(${e.id})">Edit</button>
+     <button onclick="deleteExpense(${e.id})">Delete</button>
+   </td>
+ </tr>`).join("");
+
+            renderBill(); // For billing tab
+        }
+    </script>
+
+</body>
+
+</html>

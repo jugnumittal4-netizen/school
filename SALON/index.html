@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Business Manager App</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+
+        nav button {
+            width: 33.3%;
+            padding: 15px;
+            border: none;
+            cursor: pointer;
+            background: #34495e;
+            color: white;
+            font-size: 16px;
+        }
+
+        nav button:hover {
+            background: #1abc9c;
+        }
+
+        section {
+            display: none;
+            padding: 20px;
+        }
+
+        input,
+        select,
+        button {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background: #eee;
+        }
+
+        .profit {
+            color: green;
+            font-weight: bold;
+        }
+
+        .loss {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h2>Business Sales & Expense Manager</h2>
+    </header>
+
+    <nav>
+        <button onclick="showScreen('sales')">Sales</button>
+        <button onclick="showScreen('expenses')">Expenses</button>
+        <button onclick="showScreen('profit')">Profit / Loss</button>
+    </nav>
+
+    <!-- SALES SCREEN -->
+    <section id="sales">
+        <h3>Add Sales</h3>
+        <select id="saleType">
+            <option>Cash</option>
+            <option>UPI</option>
+            <option>Card</option>
+        </select>
+        <input type="number" id="saleAmount" placeholder="Amount">
+        <input type="date" id="saleDate">
+        <button onclick="addSale()">Save Sale</button>
+
+        <h3>Sales Records</h3>
+        <table>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Amount</th>
+            </tr>
+            <tbody id="salesTable"></tbody>
+        </table>
+    </section>
+
+    <!-- EXPENSE SCREEN -->
+    <section id="expenses">
+        <h3>Add Expense</h3>
+        <input type="text" id="expenseName" placeholder="Expense Name">
+        <input type="number" id="expenseAmount" placeholder="Amount">
+        <input type="date" id="expenseDate">
+        <button onclick="addExpense()">Save Expense</button>
+
+        <h3>Expense Records</h3>
+        <table>
+            <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Amount</th>
+            </tr>
+            <tbody id="expenseTable"></tbody>
+        </table>
+    </section>
+
+    <!-- PROFIT SCREEN -->
+    <section id="profit">
+        <h3>Profit / Loss</h3>
+
+        <select id="range" onchange="calculateProfit()">
+            <option value="1">1 Day</option>
+            <option value="5">5 Days</option>
+            <option value="10">10 Days</option>
+            <option value="20">20 Days</option>
+            <option value="30">1 Month</option>
+            <option value="custom">Custom</option>
+        </select>
+
+        <div id="customDates" style="display:none">
+            <input type="date" id="fromDate">
+            <input type="date" id="toDate">
+            <button onclick="calculateProfit()">Calculate</button>
+        </div>
+
+        <h2 id="result"></h2>
+    </section>
+
+    <script>
+        let sales = JSON.parse(localStorage.getItem("sales")) || [];
+        let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
+
+        function showScreen(id) {
+            document.querySelectorAll("section").forEach(s => s.style.display = "none");
+            document.getElementById(id).style.display = "block";
+            loadTables();
+        }
+        showScreen('sales');
+
+        function addSale() {
+            sales.push({
+                type: saleType.value,
+                amount: Number(saleAmount.value),
+                date: saleDate.value
+            });
+            localStorage.setItem("sales", JSON.stringify(sales));
+            saleAmount.value = "";
+            loadTables();
+        }
+
+        function addExpense() {
+            expenses.push({
+                name: expenseName.value,
+                amount: Number(expenseAmount.value),
+                date: expenseDate.value
+            });
+            localStorage.setItem("expenses", JSON.stringify(expenses));
+            expenseAmount.value = "";
+            loadTables();
+        }
+
+        function loadTables() {
+            salesTable.innerHTML = "";
+            expenseTable.innerHTML = "";
+
+            sales.forEach(s => {
+                salesTable.innerHTML += `<tr><td>${s.date}</td><td>${s.type}</td><td>${s.amount}</td></tr>`;
+            });
+
+            expenses.forEach(e => {
+                expenseTable.innerHTML += `<tr><td>${e.date}</td><td>${e.name}</td><td>${e.amount}</td></tr>`;
+            });
+        }
+
+        function calculateProfit() {
+            let range = document.getElementById("range").value;
+            let today = new Date();
+            let from;
+
+            if (range === "custom") {
+                document.getElementById("customDates").style.display = "block";
+                from = new Date(fromDate.value);
+                today = new Date(toDate.value);
+            } else {
+                document.getElementById("customDates").style.display = "none";
+                from = new Date();
+                from.setDate(today.getDate() - range);
+            }
+
+            let totalSales = sales.filter(s => new Date(s.date) >= from && new Date(s.date) <= today)
+                .reduce((a, b) => a + b.amount, 0);
+
+            let totalExpenses = expenses.filter(e => new Date(e.date) >= from && new Date(e.date) <= today)
+                .reduce((a, b) => a + b.amount, 0);
+
+            let profit = totalSales - totalExpenses;
+
+            result.innerHTML = `
+    Sales: ₹${totalSales}<br>
+    Expenses: ₹${totalExpenses}<br>
+    <span class="${profit >= 0 ? 'profit' : 'loss'}">
+    ${profit >= 0 ? 'Profit' : 'Loss'}: ₹${profit}
+    </span>`;
+        }
+    </script>
+
+</body>
+
+</html>
